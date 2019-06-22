@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NetCoreWinSvc
+namespace NetCore
 {
     public static class ServiceBaseLifetimeHostExtensions
     {

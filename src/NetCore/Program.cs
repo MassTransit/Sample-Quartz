@@ -10,6 +10,8 @@ using Microsoft.Extensions.Options;
 using Quartz;
 using Quartz.Impl;
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace NetCore
@@ -18,9 +20,18 @@ namespace NetCore
     {
         static async Task Main(string[] args)
         {
+            var isService = !(Debugger.IsAttached || args.Contains("--console"));
+
             var builder = CreateHostBuilder(args);
 
-            await builder.RunConsoleAsync();
+            if (isService)
+            {
+                await builder.RunAsServiceAsync();
+            }
+            else
+            {
+                await builder.RunConsoleAsync();
+            }
         }
 
         static IHostBuilder CreateHostBuilder(string[] args) =>
