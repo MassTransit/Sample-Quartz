@@ -47,6 +47,7 @@ namespace NetCore
             .ConfigureServices((hostContext, services) =>
             {
                 services.Configure<AppConfig>(hostContext.Configuration.GetSection("AppConfig"));
+                services.Configure<QuartzConfig>(hostContext.Configuration.GetSection("quartz"));
 
                 // Service Bus
                 services.AddMassTransit(cfg =>
@@ -56,7 +57,14 @@ namespace NetCore
 
                 services.AddHostedService<MassTransitConsoleHostedService>();
 
-                services.AddSingleton(x => new StdSchedulerFactory().GetScheduler().ConfigureAwait(false).GetAwaiter().GetResult());
+                services.AddSingleton(x =>
+                {
+                    var quartzConfig = x.GetRequiredService<IOptions<QuartzConfig>>().Value
+                        .UpdateConnectionString(hostContext.Configuration.GetConnectionString("scheduler-db"))
+                        .ToNameValueCollection();
+                    return new StdSchedulerFactory(quartzConfig).GetScheduler().ConfigureAwait(false).GetAwaiter().GetResult();
+
+                });
             })
             .ConfigureLogging((hostingContext, logging) =>
             {
