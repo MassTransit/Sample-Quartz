@@ -1,5 +1,4 @@
 ﻿using MassTransit;
-using MassTransit.Logging.Tracing;
 using MassTransit.QuartzIntegration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -20,8 +19,6 @@ namespace NetCore
         {
             _bus = bus;
 
-            if (loggerFactory != null && MassTransit.Logging.Logger.Current.GetType() == typeof(TraceLogger))
-                MassTransit.ExtensionsLoggingIntegration.ExtensionsLogger.Use(loggerFactory);
             _logger = loggerFactory.CreateLogger<MassTransitConsoleHostedService>();
 
             _scheduler = scheduler;

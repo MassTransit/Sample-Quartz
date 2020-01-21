@@ -26,7 +26,7 @@ namespace NetCore
 
             if (isService)
             {
-                await builder.RunAsServiceAsync();
+                await builder.UseWindowsService().Build().RunAsync();
             }
             else
             {
@@ -89,7 +89,7 @@ namespace NetCore
 
                 cfg.UseJsonSerializer(); // Because we are using json within Quartz for serializer type
 
-                cfg.ReceiveEndpoint(host, options.QueueName, endpoint =>
+                cfg.ReceiveEndpoint(options.QueueName, endpoint =>
                 {
                     var partitionCount = Environment.ProcessorCount;
                     endpoint.PrefetchCount = (ushort)(partitionCount);

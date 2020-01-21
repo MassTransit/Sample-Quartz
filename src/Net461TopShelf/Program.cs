@@ -1,12 +1,13 @@
 ﻿using Autofac;
 using GreenPipes;
 using MassTransit;
+using MassTransit.Context;
 using MassTransit.QuartzIntegration;
 using MassTransit.Scheduling;
-using MassTransit.SerilogIntegration;
 using Quartz;
 using Quartz.Impl;
 using Serilog;
+using Serilog.Extensions.Logging;
 using System;
 using System.Configuration;
 using Topshelf;
@@ -27,8 +28,20 @@ namespace Net461TopShelf
             }
             catch (Exception e)
             {
+                if (Log.Logger == null || Log.Logger.GetType().Name == "SilentLogger")
+                {
+                    Log.Logger = new LoggerConfiguration()
+                        .MinimumLevel.Debug()
+                        .WriteTo.Console()
+                        .CreateLogger();
+                }
+
                 Log.Logger.Fatal(e.ToString());
                 throw;
+            }
+            finally
+            {
+                Log.CloseAndFlush();
             }
         }
 
@@ -40,6 +53,10 @@ namespace Net461TopShelf
                 s.ConstructUsing(() =>
                 {
                     var builder = new ContainerBuilder();
+
+                    var serilogFactory = new SerilogLoggerFactory();
+
+                    LogContext.ConfigureCurrentLogContext(serilogFactory);
 
                     // Service Bus
                     builder.AddMassTransit(cfg =>
@@ -82,7 +99,7 @@ namespace Net461TopShelf
 
                 cfg.UseJsonSerializer(); // Because we are using json within Quartz for serializer type
 
-                cfg.ReceiveEndpoint(host, ConfigurationManager.AppSettings["QueueName"], endpoint =>
+                cfg.ReceiveEndpoint(ConfigurationManager.AppSettings["QueueName"], endpoint =>
                 {
                     var partitionCount = Environment.ProcessorCount;
                     endpoint.PrefetchCount = (ushort)(partitionCount);
@@ -105,9 +122,6 @@ namespace Net461TopShelf
 
             // Configure Topshelf Logger
             SerilogLogWriterFactory.Use(Log.Logger);
-
-            // MassTransit to use Serilog
-            SerilogLogger.Use(Log.Logger);
         }
     }
 }
