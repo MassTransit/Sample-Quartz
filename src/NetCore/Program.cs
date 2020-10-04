@@ -50,9 +50,33 @@ namespace NetCore
                 services.Configure<QuartzConfig>(hostContext.Configuration.GetSection("quartz"));
 
                 // Service Bus
-                services.AddMassTransit(cfg =>
+                services.AddMassTransit(mt =>
                 {
-                    cfg.AddBus(ConfigureBus);
+                    mt.UsingRabbitMq((context, cfg) =>
+                    {
+                        var scheduler = context.GetRequiredService<IScheduler>();
+                        var options = context.GetRequiredService<IOptions<AppConfig>>().Value;
+
+                        cfg.Host(options.Host, options.VirtualHost, h =>
+                        {
+                            h.Username(options.Username);
+                            h.Password(options.Password);
+                        });
+
+                        cfg.UseJsonSerializer(); // Because we are using json within Quartz for serializer type
+
+                        cfg.ReceiveEndpoint(options.QueueName, endpoint =>
+                        {
+                            var partitionCount = Environment.ProcessorCount;
+                            endpoint.PrefetchCount = (ushort)(partitionCount);
+                            var partitioner = endpoint.CreatePartitioner(partitionCount);
+
+                            endpoint.Consumer(() => new ScheduleMessageConsumer(scheduler), x =>
+                                x.Message<ScheduleMessage>(m => m.UsePartitioner(partitioner, p => p.Message.CorrelationId)));
+                            endpoint.Consumer(() => new CancelScheduledMessageConsumer(scheduler),
+                                x => x.Message<CancelScheduledMessage>(m => m.UsePartitioner(partitioner, p => p.Message.TokenId)));
+                        });
+                    });
                 });
 
                 services.AddHostedService<MassTransitConsoleHostedService>();
@@ -71,36 +95,5 @@ namespace NetCore
                 logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
                 logging.AddConsole();
             });
-
-
-
-        static IBusControl ConfigureBus(IServiceProvider provider)
-        {
-            var options = provider.GetRequiredService<IOptions<AppConfig>>().Value;
-            var scheduler = provider.GetRequiredService<IScheduler>();
-
-            return Bus.Factory.CreateUsingRabbitMq(cfg =>
-            {
-                var host = cfg.Host(options.Host, options.VirtualHost, h =>
-                {
-                    h.Username(options.Username);
-                    h.Password(options.Password);
-                });
-
-                cfg.UseJsonSerializer(); // Because we are using json within Quartz for serializer type
-
-                cfg.ReceiveEndpoint(options.QueueName, endpoint =>
-                {
-                    var partitionCount = Environment.ProcessorCount;
-                    endpoint.PrefetchCount = (ushort)(partitionCount);
-                    var partitioner = endpoint.CreatePartitioner(partitionCount);
-
-                    endpoint.Consumer(() => new ScheduleMessageConsumer(scheduler), x =>
-                        x.Message<ScheduleMessage>(m => m.UsePartitioner(partitioner, p => p.Message.CorrelationId)));
-                    endpoint.Consumer(() => new CancelScheduledMessageConsumer(scheduler),
-                        x => x.Message<CancelScheduledMessage>(m => m.UsePartitioner(partitioner, p => p.Message.TokenId)));
-                });
-            });
-        }
     }
 }
