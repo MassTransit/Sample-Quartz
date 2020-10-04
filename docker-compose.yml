@@ -1,0 +1,14 @@
+version: '2'
+services:
+
+  sqlserver:
+    container_name: quartz-sample-sqlserver
+    build: docker/sqlserver
+    ports:
+     - "1433:1433"
+
+  rabbitmq:
+    container_name: quartz-sample-rabbitmq
+    image: rabbitmq:3.8-alpine
+    ports:
+     - "5672:5672"

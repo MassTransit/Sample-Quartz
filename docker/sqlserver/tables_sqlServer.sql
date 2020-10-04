@@ -1,5 +1,8 @@
 -- this script is for SQL Server and Azure SQL
+CREATE DATABASE quartznet
+GO
 
+USE [quartznet]
 GO
 
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = OBJECT_ID(N'[dbo].[FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS]') AND OBJECTPROPERTY(id, N'ISFOREIGNKEY') = 1)

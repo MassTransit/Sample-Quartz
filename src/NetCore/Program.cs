@@ -8,11 +8,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz;
-using Quartz.Impl;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Quartz.Spi;
 
 namespace NetCore
 {
@@ -47,24 +48,50 @@ namespace NetCore
             .ConfigureServices((hostContext, services) =>
             {
                 services.Configure<AppConfig>(hostContext.Configuration.GetSection("AppConfig"));
-                services.Configure<QuartzConfig>(hostContext.Configuration.GetSection("quartz"));
+                
+                services.Configure<QuartzOptions>(hostContext.Configuration.GetSection("Quartz"));
+                
+                services.AddQuartz(q =>
+                {
+                    q.ScheduleJob<MaintenanceJob>(
+                        trigger => trigger.WithSimpleSchedule(x => x
+                                .WithInterval(TimeSpan.FromSeconds(30))
+                            )
+                            .StartNow());
+                    
+                    q.UsePersistentStore(store =>
+                    {
+                        store.UseSqlServer(db =>
+                        {
+                            db.ConnectionString = hostContext.Configuration.GetConnectionString("scheduler-db");
+                        });
+                        
+                        // JSON serializer is preferred due to being more secure and performant
+                        store.UseJsonSerializer();
+                        
+                        // we can also configure clustering, you need this if you have multiple nodes
+                        // store.UseClustering();
+                    });
+                });
 
+                // these should probably be part of some UseMessageScheduler()
+                services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(MassTransitJobFactory)));
+                services.AddTransient<ScheduledMessageJob>();
+                services.Configure<QuartzOptions>(options =>
+                {
+                    options.JobFactory.Type = typeof(MassTransitJobFactory);
+                });
+
+                services.TryAddSingleton(provider => provider.GetRequiredService<ISchedulerFactory>().GetScheduler().GetAwaiter().GetResult());
+                
                 // Service Bus
                 services.AddMassTransit(cfg =>
                 {
+                    cfg.AddConsumers(typeof(ScheduleMessageConsumer), typeof(CancelScheduledMessageConsumer), typeof(PollExternalSystemConsumer));
                     cfg.AddBus(ConfigureBus);
                 });
 
                 services.AddHostedService<MassTransitConsoleHostedService>();
-
-                services.AddSingleton(x =>
-                {
-                    var quartzConfig = x.GetRequiredService<IOptions<QuartzConfig>>().Value
-                        .UpdateConnectionString(hostContext.Configuration.GetConnectionString("scheduler-db"))
-                        .ToNameValueCollection();
-                    return new StdSchedulerFactory(quartzConfig).GetScheduler().ConfigureAwait(false).GetAwaiter().GetResult();
-
-                });
             })
             .ConfigureLogging((hostingContext, logging) =>
             {
@@ -77,11 +104,10 @@ namespace NetCore
         static IBusControl ConfigureBus(IServiceProvider provider)
         {
             var options = provider.GetRequiredService<IOptions<AppConfig>>().Value;
-            var scheduler = provider.GetRequiredService<IScheduler>();
 
             return Bus.Factory.CreateUsingRabbitMq(cfg =>
             {
-                var host = cfg.Host(options.Host, options.VirtualHost, h =>
+                cfg.Host(options.Host, options.VirtualHost, h =>
                 {
                     h.Username(options.Username);
                     h.Password(options.Password);
@@ -92,13 +118,17 @@ namespace NetCore
                 cfg.ReceiveEndpoint(options.QueueName, endpoint =>
                 {
                     var partitionCount = Environment.ProcessorCount;
-                    endpoint.PrefetchCount = (ushort)(partitionCount);
+                    endpoint.PrefetchCount = (ushort) partitionCount;
                     var partitioner = endpoint.CreatePartitioner(partitionCount);
 
-                    endpoint.Consumer(() => new ScheduleMessageConsumer(scheduler), x =>
+                    endpoint.Consumer<ScheduleMessageConsumer>(provider, x =>
                         x.Message<ScheduleMessage>(m => m.UsePartitioner(partitioner, p => p.Message.CorrelationId)));
-                    endpoint.Consumer(() => new CancelScheduledMessageConsumer(scheduler),
+                    endpoint.Consumer<CancelScheduledMessageConsumer>(provider,
                         x => x.Message<CancelScheduledMessage>(m => m.UsePartitioner(partitioner, p => p.Message.TokenId)));
+                    
+                    endpoint.Consumer<PollExternalSystemConsumer>(provider);
+                    
+                    cfg.UseMessageScheduler(endpoint.InputAddress);
                 });
             });
         }
