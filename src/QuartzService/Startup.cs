@@ -75,12 +75,9 @@ public class Startup
 
         services.Configure<QuartzEndpointOptions>(Configuration.GetSection("QuartzEndpoint"));
 
-        services.AddSingleton<QuartzEndpointDefinition>();
-
         services.AddMassTransit(x =>
         {
-            x.AddConsumer<ScheduleMessageConsumer>(typeof(ScheduleMessageConsumerDefinition));
-            x.AddConsumer<CancelScheduledMessageConsumer>(typeof(CancelScheduledMessageConsumerDefinition));
+            x.AddQuartz();
 
             x.UsingRabbitMq((context, cfg) => { cfg.ConfigureEndpoints(context); });
         });
