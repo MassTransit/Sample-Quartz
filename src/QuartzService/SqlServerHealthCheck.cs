@@ -1,3 +1,5 @@
+namespace QuartzService;
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -5,7 +7,6 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace QuartzService;
 
 public class SqlServerHealthCheck :
     IHealthCheck

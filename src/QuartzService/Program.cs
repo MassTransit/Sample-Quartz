@@ -1,41 +1,35 @@
-﻿using System.Threading.Tasks;
+﻿namespace QuartzService;
+
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Serilog;
+using Serilog.Events;
 
-namespace QuartzService
+
+class Program
 {
-    class Program
+    static async Task Main(string[] args)
     {
-        static async Task Main(string[] args)
-        {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .MinimumLevel.Override("JobService", Serilog.Events.LogEventLevel.Debug)
-                .MinimumLevel.Override("MassTransit", Serilog.Events.LogEventLevel.Debug)
-                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
-                .Enrich.FromLogContext()
-                .WriteTo.Console()
-                .CreateLogger();
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("MassTransit", LogEventLevel.Debug)
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
 
-            var builder = CreateHostBuilder(args);
+        var host = CreateHostBuilder(args).Build();
 
-            await builder.Build().RunAsync();
-        }
+        await host.RunAsync();
+    }
 
-        static IHostBuilder CreateHostBuilder(string[] args)
-        {
-            return Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((hostingContext, config) =>
-                {
-                    config.AddEnvironmentVariables();
-
-                    if (args != null)
-                        config.AddCommandLine(args);
-                })
-                .UseSerilog()
-                .ConfigureWebHostDefaults(builder => builder.UseStartup<Startup>());
-        }
+    static IHostBuilder CreateHostBuilder(string[] args)
+    {
+        return Host.CreateDefaultBuilder(args)
+            .ConfigureHostConfiguration(builder => builder.AddEnvironmentVariables())
+            .UseSerilog()
+            .ConfigureWebHostDefaults(builder => builder.UseStartup<Startup>());
     }
 }

@@ -1,8 +1,9 @@
+namespace QuartzService;
+
 using MassTransit;
 using MassTransit.QuartzIntegration;
 using MassTransit.Scheduling;
 
-namespace QuartzService;
 
 public class CancelScheduledMessageConsumerDefinition :
     ConsumerDefinition<CancelScheduledMessageConsumer>

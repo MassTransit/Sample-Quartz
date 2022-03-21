@@ -1,3 +1,5 @@
+namespace QuartzService;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,7 +7,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using MassTransit;
-using MassTransit.QuartzIntegration;
 using MassTransit.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -16,23 +17,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Quartz;
-using JsonSerializerOptions = System.Text.Json.JsonSerializerOptions;
 
-namespace QuartzService;
 
 public class Startup
 {
-    static bool? _isRunningInContainer;
-
     public Startup(IConfiguration configuration)
     {
         Configuration = configuration;
     }
 
-    public IConfiguration Configuration { get; }
-
-    public static bool IsRunningInContainer =>
-        _isRunningInContainer ??= bool.TryParse(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), out var inDocker) && inDocker;
+    IConfiguration Configuration { get; }
 
     public void ConfigureServices(IServiceCollection services)
     {
@@ -52,7 +46,10 @@ public class Startup
 
             q.UseMicrosoftDependencyInjectionJobFactory();
 
-            q.UseDefaultThreadPool(tp => { tp.MaxConcurrency = 10; });
+            q.UseDefaultThreadPool(tp =>
+            {
+                tp.MaxConcurrency = 10;
+            });
 
             q.UseTimeZoneConverter();
 
@@ -75,11 +72,15 @@ public class Startup
 
         services.Configure<QuartzEndpointOptions>(Configuration.GetSection("QuartzEndpoint"));
 
+
         services.AddMassTransit(x =>
         {
-            x.AddQuartz();
+            x.AddQuartzConsumers();
 
-            x.UsingRabbitMq((context, cfg) => { cfg.ConfigureEndpoints(context); });
+            x.UsingRabbitMq((context, cfg) =>
+            {
+                cfg.ConfigureEndpoints(context);
+            });
         });
 
         services.AddQuartzHostedService(options =>
@@ -132,7 +133,7 @@ public class Startup
                 }))!)
         };
 
-        var options = new JsonSerializerOptions
+        var options = new System.Text.Json.JsonSerializerOptions
         {
             WriteIndented = true,
         };

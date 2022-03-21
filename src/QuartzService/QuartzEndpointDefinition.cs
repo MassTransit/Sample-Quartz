@@ -1,9 +1,10 @@
+namespace QuartzService;
+
 using MassTransit;
 using MassTransit.Middleware;
 using MassTransit.QuartzIntegration;
 using Microsoft.Extensions.Options;
 
-namespace QuartzService;
 
 public class QuartzEndpointDefinition :
     IEndpointDefinition<ScheduleMessageConsumer>,
@@ -24,7 +25,7 @@ public class QuartzEndpointDefinition :
 
     public virtual bool IsTemporary => false;
 
-    public virtual int? PrefetchCount => _options.ConcurrentMessageLimit;
+    public virtual int? PrefetchCount => _options.PrefetchCount;
 
     public virtual int? ConcurrentMessageLimit => _options.ConcurrentMessageLimit;
 

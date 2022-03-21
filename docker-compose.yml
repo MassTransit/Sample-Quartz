@@ -19,4 +19,5 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__quartz=Server=tcp:mssql;Database=quartznet;Persist Security Info=False;User ID=sa;Password=Quartz!DockerP4ss;Encrypt=False;TrustServerCertificate=True;
+      - RabbitMqTransport__Host=rabbitmq
 
