@@ -1,0 +1,22 @@
+version: "3.6"
+
+services:
+  rabbitmq:
+    image: masstransit/rabbitmq:latest
+    ports:
+     - "5672:5672"
+     - "15672:15672"
+  mssql:
+    image: masstransit/sqlserver-quartz:latest
+    ports:
+      - 1433:1433
+  quartz:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.quartz
+    ports:
+     - "5009:80"
+    environment:
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__quartz=Server=tcp:mssql;Database=quartznet;Persist Security Info=False;User ID=sa;Password=Quartz!DockerP4ss;Encrypt=False;TrustServerCertificate=True;
+

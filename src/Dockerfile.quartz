@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+
+WORKDIR /src
+COPY ["QuartzService/QuartzService.csproj", "QuartzService/"]
+RUN dotnet restore "QuartzService/QuartzService.csproj"
+
+COPY . .
+RUN dotnet publish -c Release --no-restore -o /app QuartzService/QuartzService.csproj
+
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine AS publish
+
+RUN apk add --no-cache icu-libs tzdata
+
+WORKDIR /app
+COPY --from=build /app ./
+ENTRYPOINT ["dotnet", "QuartzService.dll"]
