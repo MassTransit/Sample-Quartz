@@ -1,13 +1,8 @@
 namespace QuartzService;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using MassTransit;
-using MassTransit.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
@@ -70,17 +65,25 @@ public class Startup
             });
         });
 
-        services.Configure<QuartzEndpointOptions>(Configuration.GetSection("QuartzEndpoint"));
-
-
         services.AddMassTransit(x =>
         {
+            x.AddPublishMessageScheduler();
+
             x.AddQuartzConsumers();
+
+            x.AddConsumer<SampleConsumer>();
 
             x.UsingRabbitMq((context, cfg) =>
             {
+                cfg.UsePublishMessageScheduler();
+
                 cfg.ConfigureEndpoints(context);
             });
+        });
+
+        services.Configure<MassTransitHostOptions>(options =>
+        {
+            options.WaitUntilStarted = true;
         });
 
         services.AddQuartzHostedService(options =>
@@ -88,6 +91,8 @@ public class Startup
             options.StartDelay = TimeSpan.FromSeconds(5);
             options.WaitForJobsToComplete = true;
         });
+
+        services.AddHostedService<SuperWorker>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -116,28 +121,6 @@ public class Startup
     public static Task HealthCheckResponseWriter(HttpContext context, HealthReport result)
     {
         context.Response.ContentType = "application/json";
-        return context.Response.WriteAsync(ToJsonString(result));
-    }
-
-    static string ToJsonString(HealthReport result)
-    {
-        var healthResult = new JsonObject
-        {
-            ["status"] = result.Status.ToString(),
-            ["results"] = new JsonObject(result.Entries.Select(entry => new KeyValuePair<string, JsonNode>(entry.Key,
-                new JsonObject
-                {
-                    ["status"] = entry.Value.Status.ToString(),
-                    ["description"] = entry.Value.Description,
-                    ["data"] = JsonSerializer.SerializeToNode(entry.Value.Data, SystemTextJsonMessageSerializer.Options)
-                }))!)
-        };
-
-        var options = new System.Text.Json.JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
-
-        return healthResult.ToJsonString(options);
+        return context.Response.WriteAsync(result.ToJsonString());
     }
 }
