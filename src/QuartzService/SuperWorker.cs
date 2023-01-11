@@ -4,47 +4,26 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 
 public class SuperWorker :
     BackgroundService
 {
-    readonly IMessageScheduler _messageScheduler;
+    readonly IServiceScopeFactory _scopeFactory;
 
-    public SuperWorker(IMessageScheduler messageScheduler)
+    public SuperWorker(IServiceScopeFactory scopeFactory)
     {
-        _messageScheduler = messageScheduler;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _messageScheduler.SchedulePublish(TimeSpan.FromSeconds(15), new DemoMessage() { Value = "Hello, World" }, cancellationToken: stoppingToken);
-    }
-}
+        await using var scope = _scopeFactory.CreateAsyncScope();
 
+        var messageScheduler = scope.ServiceProvider.GetRequiredService<IMessageScheduler>();
 
-public class DemoMessage
-{
-    public string Value { get; set; }
-}
-
-
-public class SampleConsumer :
-    IConsumer<DemoMessage>
-{
-    readonly ILogger<SampleConsumer> _logger;
-
-    public SampleConsumer(ILogger<SampleConsumer> logger)
-    {
-        _logger = logger;
-    }
-
-    public Task Consume(ConsumeContext<DemoMessage> context)
-    {
-        _logger.LogInformation("Received scheduled message: {Value}", context.Message.Value);
-
-        return Task.CompletedTask;
+        await messageScheduler.SchedulePublish(TimeSpan.FromSeconds(15), new DemoMessage { Value = "Hello, World" }, stoppingToken);
     }
 }
