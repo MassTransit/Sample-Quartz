@@ -1,9 +1,6 @@
-namespace QuartzService;
-
-using System.Threading.Tasks;
 using MassTransit;
-using Microsoft.Extensions.Logging;
 
+namespace QuartzService;
 
 public class SampleConsumer :
     IConsumer<DemoMessage>

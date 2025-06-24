@@ -1,18 +1,9 @@
-namespace QuartzService;
-
-using System;
-using System.Threading.Tasks;
 using MassTransit;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using Quartz;
 
+namespace QuartzService;
 
 public class Startup
 {
@@ -29,7 +20,8 @@ public class Startup
 
         services.Configure<RabbitMqTransportOptions>(Configuration.GetSection("RabbitMqTransport"));
 
-        var connectionString = Configuration.GetConnectionString("quartz");
+        var connectionString = Configuration.GetConnectionString("quartz")
+            ?? throw new InvalidOperationException("Connection string 'quartz' is not configured.");
 
         services.AddHealthChecks()
             .AddCheck<SqlServerHealthCheck>("sql");
@@ -39,14 +31,10 @@ public class Startup
             q.SchedulerName = "MassTransit-Scheduler";
             q.SchedulerId = "AUTO";
 
-            q.UseMicrosoftDependencyInjectionJobFactory();
-
             q.UseDefaultThreadPool(tp =>
             {
                 tp.MaxConcurrency = 10;
             });
-
-            q.UseTimeZoneConverter();
 
             q.UsePersistentStore(s =>
             {
@@ -55,13 +43,16 @@ public class Startup
 
                 s.UseSqlServer(connectionString);
 
-                s.UseJsonSerializer();
-
                 s.UseClustering(c =>
                 {
                     c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
                     c.CheckinInterval = TimeSpan.FromSeconds(10);
                 });
+
+                var serializerType = Configuration["quartz:serializer:type"]
+                    ?? throw new InvalidOperationException("Missing Quartz serializer type configuration.");
+
+                s.SetProperty("quartz.serializer.type", serializerType);
             });
         });
 

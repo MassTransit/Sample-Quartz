@@ -1,12 +1,7 @@
-﻿namespace QuartzService;
-
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Serilog;
+﻿using Serilog;
 using Serilog.Events;
 
+namespace QuartzService;
 
 class Program
 {

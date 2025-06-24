@@ -2,5 +2,5 @@ namespace QuartzService;
 
 public class DemoMessage
 {
-    public string Value { get; set; }
+    public string? Value { get; init; }
 }
