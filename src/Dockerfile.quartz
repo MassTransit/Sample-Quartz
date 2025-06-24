@@ -1,14 +1,21 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+# Use .NET 8 SDK to build the app
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /src
 COPY ["QuartzService/QuartzService.csproj", "QuartzService/"]
 RUN dotnet restore "QuartzService/QuartzService.csproj"
 
+# Copy the entire source and publish
 COPY . .
-RUN dotnet publish -c Release --no-restore -o /app QuartzService/QuartzService.csproj
+RUN dotnet publish "QuartzService/QuartzService.csproj" -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS publish
+# Use ASP.NET 8 runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 
 WORKDIR /app
-COPY --from=build /app ./
+COPY --from=build /app/publish .
+
+# Optional: If you're using ASP.NET Core with Kestrel
+ENV ASPNETCORE_URLS=http://+:80
+
 ENTRYPOINT ["dotnet", "QuartzService.dll"]

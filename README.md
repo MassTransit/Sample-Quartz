@@ -11,4 +11,4 @@ The persistence mechanism used in this example is SQLServer, however Quartz.net 
 
 Connect to your development SQLServer, windows users is most likely (localdb)\MSSQLLocalDb, and [run this script](create_quartz_tables.sql)
 
-Open the .sln, and run any one of the three projects. Done, you have a MT Scheduler!
+Open the .sln, and run the QuartzService project. Done, you have a MT Scheduler!
